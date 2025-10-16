@@ -5,12 +5,11 @@ import math
 from cvzone.HandTrackingModule import HandDetector
 
 model_path = r"C:\Users\Sahil Siddique\Desktop\Sign language detection\trend_model\keras_model.h5"
-
 model = tf.keras.models.load_model(model_path)
 
 labels_path = r"C:\Users\Sahil Siddique\Desktop\Sign language detection\trend_model\labels.txt"
 with open(labels_path, "r") as f:
-    labels = [line.strip() for line in f.readlines()]
+    labels = [line.strip().split(' ', 1)[-1] for line in f.readlines()]
 
 cap = cv2.VideoCapture(0)
 detector = HandDetector(maxHands=2)
@@ -18,8 +17,9 @@ detector = HandDetector(maxHands=2)
 offset = 20
 imgSize = 400
 
-print("Model loaded successfully! Starting camera")
+print("✅ Model loaded successfully! Starting camera...")
 
+# ---- Main Loop ----
 while True:
     success, img = cap.read()
     if not success:
@@ -33,7 +33,6 @@ while True:
         hand = hands[0]
         x, y, w, h = hand['bbox']
 
-        # Crop hand region safely
         y1, y2 = max(0, y - offset), min(img.shape[0], y + h + offset)
         x1, x2 = max(0, x - offset), min(img.shape[1], x + w + offset)
         imgCrop = img[y1:y2, x1:x2]
@@ -57,24 +56,37 @@ while True:
             hGap = math.ceil((imgSize - hCal) / 2)
             imgWhite[hGap:hGap + imgResize.shape[0], :] = imgResize
 
+        # ---- Preprocess Image for Model ----
         imgRGB = cv2.cvtColor(imgWhite, cv2.COLOR_BGR2RGB)
-        imgRGB = cv2.resize(imgRGB, (224, 224))       
-        imgRGB = imgRGB / 255.0                      
+        imgRGB = cv2.resize(imgRGB, (224, 224))
+        imgRGB = imgRGB / 255.0
         imgRGB = np.expand_dims(imgRGB, axis=0)
 
+        # ---- Prediction ----
         prediction = model.predict(imgRGB)
         index = np.argmax(prediction)
         label = labels[index] if index < len(labels) else "Unknown"
 
-        cv2.putText(imgOutput, label, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 255, 0), 3)
+        # ---- Draw Rectangle Around Hand ----
         cv2.rectangle(imgOutput, (x - offset, y - offset),
                       (x + w + offset, y + h + offset), (0, 255, 0), 4)
 
+        # ---- Display Label Above the Box ----
+        text_y = y - 35  # Move text above the box
+        if text_y < 35:  # If hand is too close to top edge
+            text_y = y + h + 45  # Place below box instead
+
+        cv2.putText(imgOutput, label, (x, text_y),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 255, 0), 3, cv2.LINE_AA)
+
+        # ---- Show Intermediate Images ----
         cv2.imshow('Hand Crop', imgCrop)
         cv2.imshow('Processed', imgWhite)
 
+    # ---- Show Final Output ----
     cv2.imshow('Sign Detection', imgOutput)
 
+    # Press 'q' to exit
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
 
