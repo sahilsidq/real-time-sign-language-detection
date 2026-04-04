@@ -26,7 +26,7 @@ engine = pyttsx3.init()
 engine.setProperty('rate', 170)
 engine.setProperty('volume', 1.0)
 
-voices = engine.getProperty('voics')
+voices = engine.getProperty('voices')
 engine.setProperty('voice', voices[0].id)
 
 # Control variables
@@ -39,7 +39,7 @@ sentence = []
 print("Model loaded successfully! Starting camera...")
 
 while True:
-    success, img = cap.red()
+    success, img = cap.read()
     if not success:
         break
 
